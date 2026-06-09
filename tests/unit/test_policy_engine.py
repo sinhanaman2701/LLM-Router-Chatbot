@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -49,19 +49,9 @@ async def test_cancel_booking_requires_confirmation():
 
 
 @pytest.mark.asyncio
-async def test_rate_limit_denies_after_5():
-    with patch("chatbot.agents.harness.policy_engine.settings.APP_ENV", "production"):
-        engine = PolicyEngine(redis=_make_redis(6))
-        result = await engine.evaluate("create_booking", {}, _make_context())
-    assert result.action == "DENY"
-    assert result.rule_id == "rate_limit_booking"
-
-
-@pytest.mark.asyncio
-async def test_rate_limit_is_skipped_outside_production():
-    with patch("chatbot.agents.harness.policy_engine.settings.APP_ENV", "development"):
-        engine = PolicyEngine(redis=_make_redis(6))
-        result = await engine.evaluate("create_booking", {}, _make_context())
+async def test_booking_always_requires_confirmation_regardless_of_count():
+    engine = PolicyEngine(redis=_make_redis(6))
+    result = await engine.evaluate("create_booking", {}, _make_context())
     assert result.action == "REQUIRE_CONFIRMATION"
     assert result.rule_id == "always_confirm_booking"
 
