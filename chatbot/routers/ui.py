@@ -371,8 +371,8 @@ def _build_page() -> str:
         sessionId: null,
         inFlight: false,
       };
-      const POLL_INTERVAL_MS = 1200;
-      const MAX_POLL_ATTEMPTS = 50;
+      const POLL_INTERVAL_MS = 1500;
+      const MAX_POLL_ATTEMPTS = 120;
 
       const loginForm = document.getElementById("login-form");
       const chatForm = document.getElementById("chat-form");

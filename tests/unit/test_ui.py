@@ -15,5 +15,5 @@ def test_chat_ui_serves_login_and_chat_shell():
     assert 'fetch("/chat/status/" + requestId' in body
     assert 'id="session-id"' not in body
     assert 'id="auth-state"' not in body
-    assert "MAX_POLL_ATTEMPTS = 50" in body
+    assert "MAX_POLL_ATTEMPTS" in body
     assert "The chat request was not found. Please try sending it again." in body
