@@ -1,0 +1,28 @@
+{
+  "serviceName": "llm-router-chatbot",
+  "cluster": "__ECS_CLUSTER_NAME__",
+  "taskDefinition": "__TASK_DEFINITION_FAMILY__:__TASK_DEFINITION_REVISION__",
+  "launchType": "FARGATE",
+  "desiredCount": 1,
+  "enableExecuteCommand": true,
+  "deploymentConfiguration": {
+    "maximumPercent": 200,
+    "minimumHealthyPercent": 50
+  },
+  "networkConfiguration": {
+    "awsvpcConfiguration": {
+      "subnets": ["__SUBNET_ID_1__", "__SUBNET_ID_2__"],
+      "securityGroups": ["__ECS_TASK_SECURITY_GROUP_ID__"],
+      "assignPublicIp": "DISABLED"
+    }
+  },
+  "loadBalancers": [
+    {
+      "targetGroupArn": "__WEB_TARGET_GROUP_ARN__",
+      "containerName": "web",
+      "containerPort": 8000
+    }
+  ],
+  "healthCheckGracePeriodSeconds": 60,
+  "propagateTags": "SERVICE"
+}

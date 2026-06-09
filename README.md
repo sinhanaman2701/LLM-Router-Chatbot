@@ -237,6 +237,7 @@ This repo is also ready for an AWS beta deployment using:
 See:
 
 - [AWS ECS beta deploy guide](docs/aws-ecs-beta-deploy.md)
+- [AWS ECS deploy assets](ops/aws/README.md)
 
 ---
 

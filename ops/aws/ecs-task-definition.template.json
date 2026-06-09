@@ -1,0 +1,123 @@
+{
+  "family": "llm-router-chatbot",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "__ECS_EXECUTION_ROLE_ARN__",
+  "taskRoleArn": "__ECS_TASK_ROLE_ARN__",
+  "runtimePlatform": {
+    "operatingSystemFamily": "LINUX",
+    "cpuArchitecture": "X86_64"
+  },
+  "containerDefinitions": [
+    {
+      "name": "web",
+      "image": "__AWS_ACCOUNT_ID__.dkr.ecr.__AWS_REGION__.amazonaws.com/llm-router-chatbot-web:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "hostPort": 8000,
+          "protocol": "tcp",
+          "name": "web-8000-tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "APP_ENV",
+          "value": "production"
+        },
+        {
+          "name": "DATABASE_URL",
+          "value": "__DATABASE_URL__"
+        },
+        {
+          "name": "REDIS_URL",
+          "value": "__REDIS_URL__"
+        },
+        {
+          "name": "SESSION_HMAC_SECRET",
+          "value": "__SESSION_HMAC_SECRET__"
+        },
+        {
+          "name": "MOCK_SERVER_URL",
+          "value": "http://127.0.0.1:3000"
+        },
+        {
+          "name": "MOCK_SERVER_EMAIL",
+          "value": "dn.user.a@gmail.com"
+        },
+        {
+          "name": "MOCK_SERVER_PASSWORD",
+          "value": "password"
+        },
+        {
+          "name": "OLLAMA_API_KEY",
+          "value": "__OLLAMA_API_KEY__"
+        },
+        {
+          "name": "OLLAMA_BASE_URL",
+          "value": "https://ollama.com"
+        },
+        {
+          "name": "OLLAMA_MODEL",
+          "value": "gemma4:31b-cloud"
+        },
+        {
+          "name": "PORT",
+          "value": "8000"
+        }
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://127.0.0.1:8000/health || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 20
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/llm-router-chatbot/web",
+          "awslogs-region": "__AWS_REGION__",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    },
+    {
+      "name": "mock-server",
+      "image": "__AWS_ACCOUNT_ID__.dkr.ecr.__AWS_REGION__.amazonaws.com/llm-router-chatbot-mock-server:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "hostPort": 3000,
+          "protocol": "tcp",
+          "name": "mock-server-3000-tcp"
+        }
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:3000/health >/dev/null || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 10
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/llm-router-chatbot/mock-server",
+          "awslogs-region": "__AWS_REGION__",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
