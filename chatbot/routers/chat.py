@@ -8,6 +8,7 @@ import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, status
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from chatbot.agents.planners.base_planner import PlannerOutput
 from chatbot.config import settings
 from chatbot.middleware.auth_middleware import require_session_id_dep
 from chatbot.observability.context import bind_log_context, clear_log_context
@@ -59,6 +60,7 @@ async def _process_message(
     db_pool = app_state.db_pool
 
     try:
+        planner_output: PlannerOutput | None = None
         session = await state_manager.get_session(session_id)
         user = session.user
 
@@ -117,7 +119,7 @@ async def _process_message(
                     lambda s: _append_messages(s, user_message, response_text),
                 )
                 _fresh = await state_manager.get_session(session_id)
-                _hints = _compute_ui_hints(_fresh)
+                _hints = _compute_ui_hints(_fresh, planner_output)
                 result_payload = json.dumps({"status": "done", "response": response_text, "ui_hints": _hints})
                 await redis.set(f"request:{request_id}", result_payload, ex=settings.REQUEST_RESULT_TTL)
                 return
@@ -280,7 +282,7 @@ async def _process_message(
         )
 
         _fresh = await state_manager.get_session(session_id)
-        _hints = _compute_ui_hints(_fresh)
+        _hints = _compute_ui_hints(_fresh, planner_output)
         result_payload = json.dumps({"status": "done", "response": response_text, "ui_hints": _hints})
         await redis.set(f"request:{request_id}", result_payload, ex=settings.REQUEST_RESULT_TTL)
 
@@ -297,8 +299,18 @@ def _bump_unclear(session):
     return session
 
 
-def _compute_ui_hints(session) -> dict:
-    """Return UI hint dict telling the frontend which date picker UI to render."""
+def _compute_ui_hints(session, planner_output: PlannerOutput | None = None) -> dict:
+    """Return UI hint dict telling the frontend which date picker UI to render.
+
+    Only emits hints when the planner is actively asking the user for input
+    (type="user_question"). A final_answer means the planner concluded its
+    turn — no picker is appropriate even if date slots are empty.
+    """
+    # No planner ran this turn (small_talk, unclear, side_question, etc.)
+    # or planner concluded with a final_answer — never show date picker.
+    if planner_output is None or planner_output.type != "user_question":
+        return {}
+
     task = session.active_task
     if task is None:
         return {}
