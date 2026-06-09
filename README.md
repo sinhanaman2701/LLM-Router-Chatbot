@@ -239,6 +239,16 @@ See:
 - [AWS ECS beta deploy guide](docs/aws-ecs-beta-deploy.md)
 - [AWS ECS deploy assets](ops/aws/README.md)
 
+### EC2 POC Deploy
+
+If you just need a shareable public URL quickly, use the EC2 path instead of
+ECS. This runs `web`, `mock-server`, `postgres`, and `redis` on one Ubuntu
+instance with Docker Compose.
+
+See:
+
+- [EC2 POC deploy guide](docs/ec2-poc-deploy.md)
+
 ---
 
 ## API
