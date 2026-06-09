@@ -79,7 +79,6 @@ Concrete templates live in:
 - `ops/aws/ecs-task-definition.template.json`
 - `ops/aws/ecs-service.template.json`
 - `ops/aws/README.md`
-
 ## Environment Variables For `web`
 
 Set these on the `web` container:
@@ -127,7 +126,6 @@ aws ecs run-task \
   --network-configuration "awsvpcConfiguration={subnets=[subnet-1,subnet-2],securityGroups=[sg-ecs-task],assignPublicIp=DISABLED}" \
   --overrides '{"containerOverrides":[{"name":"web","command":["bash","scripts/release_web.sh"]}]}'
 ```
-
 ## Networking
 
 - Put ECS, RDS, and ElastiCache in the same VPC
