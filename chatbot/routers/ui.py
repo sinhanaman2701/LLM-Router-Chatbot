@@ -697,6 +697,13 @@ def _build_page() -> str:
 
           setChatEnabled(true);
           setStatus(payload.recovery_message || "Logged in. You can start chatting now.");
+
+          addMessage(
+            "assistant",
+            "Hi! I'm Anacity AI 👋\n\nHere's what I can help you with:\n\n📅 Book a facility\n❌ Cancel a booking\n📋 View your bookings\n\nAvailable facilities: Tennis Court, Swimming Pool, Badminton Court, Gym.\n\nWe can also continue your earlier task whenever you're ready. Just let me know!",
+            {}
+          );
+
           messageInput.focus();
         } catch (error) {
           state.token = null;
