@@ -164,6 +164,80 @@ uv run uvicorn chatbot.main:app --reload
 The embedded chat UI is at `http://localhost:8000`.  
 API docs at `http://localhost:8000/docs`.
 
+### Railway Beta Deploy
+
+Recommended Railway project shape:
+
+- `web`: FastAPI app from this repo root
+- `mock-server`: Node service from `mock-server/`
+- managed PostgreSQL
+- managed Redis
+
+Recommended `web` service commands:
+
+```bash
+# Build command
+uv sync
+
+# Start command
+bash scripts/start_web.sh
+```
+
+Recommended release command for `web`:
+
+```bash
+bash scripts/release_web.sh
+```
+
+Recommended `mock-server` service commands:
+
+```bash
+# Root directory
+mock-server
+
+# Install command
+npm install
+
+# Start command
+npm start
+```
+
+Recommended `web` environment variables:
+
+| Variable | Value |
+|---|---|
+| `APP_ENV` | `production` |
+| `DATABASE_URL` | Railway Postgres connection string |
+| `REDIS_URL` | Railway Redis connection string |
+| `SESSION_HMAC_SECRET` | long random secret |
+| `MOCK_SERVER_URL` | Railway private URL for the mock-server service |
+| `MOCK_SERVER_EMAIL` | `dn.user.a@gmail.com` |
+| `MOCK_SERVER_PASSWORD` | `password` |
+| `OLLAMA_API_KEY` | your Ollama Cloud key |
+| `OLLAMA_BASE_URL` | `https://ollama.com` |
+| `OLLAMA_MODEL` | `gemma4:31b-cloud` |
+
+Notes:
+
+- `web` exposes `/health` and `/health/ready`
+- `mock-server` exposes `/health`
+- use Railway private networking between `web` and `mock-server`
+- redeploy after changing env vars
+
+### AWS ECS/Fargate Beta Deploy
+
+This repo is also ready for an AWS beta deployment using:
+
+- ECS Fargate
+- one task with two containers: `web` and `mock-server`
+- RDS PostgreSQL
+- ElastiCache node-based Valkey/Redis
+- an ALB public URL instead of a custom domain
+
+See:
+
+- [AWS ECS beta deploy guide](docs/aws-ecs-beta-deploy.md)
+
 ---
 
 ## API

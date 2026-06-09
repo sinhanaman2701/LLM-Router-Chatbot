@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 import json
 import time
+from typing import Any
 from uuid import uuid4
 
 import structlog
@@ -13,6 +15,7 @@ from chatbot.config import settings
 from chatbot.middleware.auth_middleware import require_session_id_dep
 from chatbot.observability.context import bind_log_context, clear_log_context
 from chatbot.state.schemas import ChatMessage, HarnessContext
+from chatbot.tools.facility_tools import get_facility_availability
 
 logger = structlog.get_logger(__name__)
 
@@ -119,7 +122,12 @@ async def _process_message(
                     lambda s: _append_messages(s, user_message, response_text),
                 )
                 _fresh = await state_manager.get_session(session_id)
-                _hints = _compute_ui_hints(_fresh, planner_output)
+                _hints = await _build_ui_hints(
+                    _fresh,
+                    planner_output,
+                    redis,
+                    app_state.api_adapter,
+                )
                 result_payload = json.dumps({"status": "done", "response": response_text, "ui_hints": _hints})
                 await redis.set(f"request:{request_id}", result_payload, ex=settings.REQUEST_RESULT_TTL)
                 return
@@ -154,10 +162,15 @@ async def _process_message(
                 harness_context = harness_context.model_copy(update={"task_id": pending_call.task_id})
                 result = await harness.execute(pending_call, harness_context, pre_confirmed=True)
                 if result.status == "SUCCESS":
-                    booking_id = (result.data or {}).get("booking_id", "N/A") if isinstance(result.data, dict) else "N/A"
-                    response_text = f"Done! Your booking is confirmed. Booking ID: {booking_id}."
-                    # Upsert preferences
                     task_after = session.active_task
+                    if pending_call.tool_name == "create_booking":
+                        booking_id = (result.data or {}).get("booking_id", "N/A") if isinstance(result.data, dict) else "N/A"
+                        response_text = f"Done! Your booking is confirmed. Booking ID: {booking_id}."
+                    elif pending_call.tool_name == "cancel_booking":
+                        cancelled_booking_id = (result.data or {}).get("cancelled_booking_id", "N/A") if isinstance(result.data, dict) else "N/A"
+                        response_text = f"Done! Your booking has been cancelled. Booking ID: {cancelled_booking_id}."
+                    else:
+                        response_text = "Done! The action is complete."
                     if task_after and task_after.slots.facility_name:
                         await preferences_manager.upsert(
                             db_pool, redis, user.user_id, user.community_id,
@@ -168,6 +181,7 @@ async def _process_message(
                             db_pool, redis, user.user_id, user.community_id,
                             "preferred_time", task_after.slots.start_time, 0.8,
                         )
+                    session = await state_manager.clear_task(session_id)
                 elif result.status == "UNCERTAIN_STATE":
                     response_text = result.error or "The action may or may not have completed. Please check your bookings."
                 else:
@@ -282,7 +296,12 @@ async def _process_message(
         )
 
         _fresh = await state_manager.get_session(session_id)
-        _hints = _compute_ui_hints(_fresh, planner_output)
+        _hints = await _build_ui_hints(
+            _fresh,
+            planner_output,
+            redis,
+            app_state.api_adapter,
+        )
         result_payload = json.dumps({"status": "done", "response": response_text, "ui_hints": _hints})
         await redis.set(f"request:{request_id}", result_payload, ex=settings.REQUEST_RESULT_TTL)
 
@@ -300,14 +319,6 @@ def _bump_unclear(session):
 
 
 def _compute_ui_hints(session, planner_output: PlannerOutput | None = None) -> dict:
-    """Return UI hint dict telling the frontend which date picker UI to render.
-
-    Only emits hints when the planner is actively asking the user for input
-    (type="user_question"). A final_answer means the planner concluded its
-    turn — no picker is appropriate even if date slots are empty.
-    """
-    # No planner ran this turn (small_talk, unclear, side_question, etc.)
-    # or planner concluded with a final_answer — never show date picker.
     if planner_output is None or planner_output.type != "user_question":
         return {}
 
@@ -315,16 +326,108 @@ def _compute_ui_hints(session, planner_output: PlannerOutput | None = None) -> d
     if task is None:
         return {}
     slots = task.slots
-    # Priority 1: awaiting harness confirmation → confirm pill
-    if task.awaiting_confirmation:
-        return {"type": "date_confirm_pill", "current_date": slots.date}
-    # Priority 2: date not yet collected → full inline calendar
     if slots.date is None:
-        return {"type": "date_picker"}
-    # Priority 3: date known but time not yet collected → change pill
+        return {"type": "date_picker_inline", "submit_prefix": "Set date to "}
     if slots.start_time is None:
-        return {"type": "date_change_pill", "current_date": slots.date}
-    return {}
+        return {
+            "type": "time_picker_inline",
+            "current_date": slots.date,
+            "submit_prefix": "Set time to ",
+        }
+    return {
+        "type": "time_change_pill",
+        "current_date": slots.date,
+        "current_time": slots.start_time,
+        "submit_prefix": "Change time to ",
+    }
+
+
+def _time_slots(open_time: str, close_time: str, duration_min: int) -> list[str]:
+    fmt = "%H:%M"
+    start = datetime.strptime(open_time, fmt)
+    end = datetime.strptime(close_time, fmt)
+    delta = timedelta(minutes=duration_min)
+    slots: list[str] = []
+    current = start
+    while current + delta <= end:
+        slots.append(current.strftime(fmt))
+        current += delta
+    return slots
+
+
+async def _build_ui_hints(
+    session,
+    planner_output: PlannerOutput | None,
+    redis,
+    api_adapter,
+) -> dict:
+    base_hint = _compute_ui_hints(session, planner_output)
+    if not base_hint:
+        return {}
+
+    if base_hint["type"] == "date_picker_inline":
+        return base_hint
+
+    task = session.active_task
+    if task is None or task.slots.date is None:
+        return {}
+
+    try:
+        facilities = await _get_cached_facilities(redis, api_adapter, session.user.community_id)
+        facility = _find_facility(facilities, task.slots.facility_name, task.slots.facility_id)
+        facility_id = task.slots.facility_id or (
+            str(facility.get("id") or facility.get("facility_id")) if facility else None
+        )
+        if not facility_id:
+            return {}
+
+        availability = await get_facility_availability(api_adapter, facility_id, task.slots.date)
+        open_time = task.slots.open_time or availability.get("open_time") or (
+            facility.get("open_time") if facility else None
+        )
+        close_time = task.slots.close_time or availability.get("close_time") or (
+            facility.get("close_time") if facility else None
+        )
+        duration_minutes = task.slots.duration_minutes or availability.get("default_duration_min") or (
+            facility.get("default_duration_min") if facility else None
+        )
+        if not open_time or not close_time or not duration_minutes:
+            return {}
+
+        available_slots = set(availability.get("available_slots") or [])
+        selected_time = task.slots.start_time
+        slot_entries = []
+        for slot_time in _time_slots(open_time, close_time, int(duration_minutes)):
+            status = "available"
+            selectable = True
+            if selected_time and slot_time == selected_time:
+                status = "selected"
+            elif slot_time not in available_slots:
+                status = "unavailable"
+                selectable = False
+            slot_entries.append(
+                {
+                    "time": slot_time,
+                    "status": status,
+                    "selectable": selectable,
+                }
+            )
+
+        return {
+            **base_hint,
+            "facility_id": facility_id,
+            "facility_name": task.slots.facility_name or (
+                facility.get("facility_name") or facility.get("name") if facility else None
+            ),
+            "current_time": selected_time,
+            "open_time": open_time,
+            "close_time": close_time,
+            "duration_minutes": int(duration_minutes),
+            "slots": slot_entries,
+        }
+    except Exception as exc:
+        logger.warning("ui_hint_build_failed", error=str(exc))
+        return {}
 
 
 def _append_messages(session, user_msg: str, bot_msg: str):
@@ -369,14 +472,55 @@ def _find_facilities_by_category(facilities: list[dict], user_message: str) -> l
 
 async def _answer_side_question(redis, api_adapter, session, user_message: str) -> str:
     lowered = user_message.lower()
-    if any(phrase in lowered for phrase in ("my bookings", "my reservations")):
+    if "bk_" in lowered and "booking" in lowered:
+        bookings = await api_adapter.get_my_bookings()
+        items: list[dict] = []
+        if isinstance(bookings, dict):
+            items = list((bookings.get("upcoming_bookings") or [])) + list((bookings.get("past_bookings") or []))
+            if not items:
+                items = bookings.get("bookings") or bookings.get("data") or []
+        booking_id = None
+        for token in user_message.replace(".", " ").replace(",", " ").split():
+            if token.startswith("bk_"):
+                booking_id = token
+                break
+        if booking_id:
+            match = next(
+                (
+                    item for item in items
+                    if isinstance(item, dict) and item.get("booking_id") == booking_id
+                ),
+                None,
+            )
+            if match:
+                facility_name = match.get("facility_name") or match.get("facility_id") or "that facility"
+                date = match.get("date") or "an unknown date"
+                start_time = match.get("start_time") or "an unknown time"
+                status = match.get("status") or "Confirmed"
+                return (
+                    f"Booking {booking_id} is for {facility_name} on {date} at {start_time}. "
+                    f"Status: {status}. We can continue your earlier task whenever you're ready."
+                )
+            return f"I couldn't find booking {booking_id} in your current bookings."
+
+    if any(phrase in lowered for phrase in ("my bookings", "my booking", "my reservations")):
         bookings = await api_adapter.get_my_bookings()
         if isinstance(bookings, dict):
-            items = bookings.get("bookings") or bookings.get("data") or []
+            upcoming = bookings.get("upcoming_bookings") or []
+            past = bookings.get("past_bookings") or []
+            items = upcoming + past
+            if not items:
+                items = bookings.get("bookings") or bookings.get("data") or []
         else:
             items = bookings
         if not items:
             return "You do not have any active bookings right now."
+        booking_ids = [item.get("booking_id") for item in items if isinstance(item, dict) and item.get("booking_id")]
+        if booking_ids:
+            return (
+                f"You currently have {len(items)} booking(s): " + ", ".join(booking_ids[:5]) +
+                ". We can go back to your earlier task whenever you're ready."
+            )
         return f"You currently have {len(items)} booking(s). We can go back to your earlier task whenever you're ready."
 
     facilities = await _get_cached_facilities(redis, api_adapter, session.user.community_id)

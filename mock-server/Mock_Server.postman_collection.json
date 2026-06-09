@@ -1,0 +1,296 @@
+{
+  "info": {
+    "name": "Mock Server API",
+    "description": "Postman collection for all APIs hosted on the local dummy mock server. Includes payloads and example responses.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "m_login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "email", "value": "dn.user.a@gmail.com", "type": "text" },
+                { "key": "password", "value": "12345", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/m_login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "m_login"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"m_system_status_code\": 0,\n  \"m_system_status_message\": null,\n  \"m_app_response\": {\n    \"m_response_data\": {\n      \"user_email\": \"dn.user.a@gmail.com\",\n      \"bearer_token\": \"\"\n    },\n    \"m_app_status_code\": 0,\n    \"m_app_status_msg\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "m_logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/m_logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "m_logout"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"m_system_status_code\": 0,\n  \"m_system_status_message\": null,\n  \"m_app_response\": {\n    \"m_response_data\": \"\",\n    \"m_app_status_code\": 0,\n    \"m_app_status_msg\": null\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Facilities",
+      "item": [
+        {
+          "name": "m_get_facility_list",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/facilities/m_get_facility_list",
+              "host": ["{{base_url}}"],
+              "path": ["facilities", "m_get_facility_list"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"m_system_status_code\": 0,\n  \"m_system_status_message\": null,\n  \"m_app_response\": {\n    \"m_response_data\": [\n      { \"id\": \"fac_1\", \"name\": \"Tennis Court\", \"category\": \"Sports\" },\n      { \"id\": \"fac_2\", \"name\": \"Swimming Pool\", \"category\": \"Recreation\" }\n    ],\n    \"m_app_status_code\": 0,\n    \"m_app_status_msg\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "m_get_facility_booking_data",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/facilities/m_get_facility_booking_data/fac_1",
+              "host": ["{{base_url}}"],
+              "path": ["facilities", "m_get_facility_booking_data", "fac_1"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"m_system_status_code\": 0,\n  \"m_system_status_message\": null,\n  \"m_app_response\": {\n    \"m_response_data\": {\n      \"facility_id\": \"fac_1\",\n      \"bookings\": [\n        { \"booking_id\": \"3592124\", \"date\": \"2026-04-04\", \"user\": \"dn.user.a@gmail.com\", \"status\": \"Confirmed\" }\n      ]\n    },\n    \"m_app_status_code\": 0,\n    \"m_app_status_msg\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "m_directory (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/facilities/m_directory",
+              "host": ["{{base_url}}"],
+              "path": ["facilities", "m_directory"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"m_system_status_code\": 0,\n  \"m_system_status_message\": null,\n  \"m_app_response\": {\n    \"m_response_data\": { \"directory\": [\"Sports\", \"Recreation\", \"Meeting Rooms\"] },\n    \"m_app_status_code\": 0,\n    \"m_app_status_msg\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "m_get_facility_directory",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/facilities/m_get_facility_directory",
+              "host": ["{{base_url}}"],
+              "path": ["facilities", "m_get_facility_directory"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"m_system_status_code\": 0,\n  \"m_system_status_message\": null,\n  \"m_app_response\": {\n    \"m_response_data\": { \"categories\": [\"eNortjK2UjI2NVOyBlwwDYACOA~~\"] },\n    \"m_app_status_code\": 0,\n    \"m_app_status_msg\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "m_get_facility_bookings_info",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/facilities/m_get_facility_bookings_info",
+              "host": ["{{base_url}}"],
+              "path": ["facilities", "m_get_facility_bookings_info"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"m_system_status_code\": 0,\n  \"m_system_status_message\": null,\n  \"m_app_response\": {\n    \"m_response_data\": { \"info\": \"Facility bookings information retrieved successfully.\" },\n    \"m_app_status_code\": 0,\n    \"m_app_status_msg\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "m_get_my_bookings_v3",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/facilities/m_get_my_bookings_v3",
+              "host": ["{{base_url}}"],
+              "path": ["facilities", "m_get_my_bookings_v3"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"m_system_status_code\": 0,\n  \"m_system_status_message\": null,\n  \"m_app_response\": {\n    \"m_response_data\": { \"upcoming_bookings\": [], \"past_bookings\": [] },\n    \"m_app_status_code\": 0,\n    \"m_app_status_msg\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "m_member_make_booking",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/facilities/m_member_make_booking",
+              "host": ["{{base_url}}"],
+              "path": ["facilities", "m_member_make_booking"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"m_system_status_code\": 0,\n  \"m_system_status_message\": null,\n  \"m_app_response\": {\n    \"m_response_data\": { \"booking_id\": \"mock_booking_id_17392\", \"status\": \"Confirmed\" },\n    \"m_app_status_code\": 0,\n    \"m_app_status_msg\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "m_cancel_booking",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "booking_id", "value": "3592124", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/facilities/m_cancel_booking",
+              "host": ["{{base_url}}"],
+              "path": ["facilities", "m_cancel_booking"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"m_system_status_code\": 0,\n  \"m_system_status_message\": null,\n  \"m_app_response\": {\n    \"m_response_data\": { \"cancelled_booking_id\": \"3592124\", \"status\": \"Cancelled\" },\n    \"m_app_status_code\": 0,\n    \"m_app_status_msg\": null\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Community V2",
+      "item": [
+        {
+          "name": "m_get_dashboard_static_data",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/community_v2/m_get_dashboard_static_data",
+              "host": ["{{base_url}}"],
+              "path": ["community_v2", "m_get_dashboard_static_data"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"m_system_status_code\": 0,\n  \"m_system_status_message\": null,\n  \"m_app_response\": {\n    \"m_response_data\": { \"static_data_version\": \"v1.0\", \"widgets\": [] },\n    \"m_app_status_code\": 0,\n    \"m_app_status_msg\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "m_sync_static_data",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/community_v2/m_sync_static_data",
+              "host": ["{{base_url}}"],
+              "path": ["community_v2", "m_sync_static_data"]
+            }
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"m_system_status_code\": 0,\n  \"m_system_status_message\": null,\n  \"m_app_response\": {\n    \"m_response_data\": { \"sync_status\": \"Completed\", \"timestamp\": 1739281923 },\n    \"m_app_status_code\": 0,\n    \"m_app_status_msg\": null\n  }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

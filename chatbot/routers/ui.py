@@ -233,6 +233,68 @@ def _build_page() -> str:
       .dp-day.today    { font-weight: 700; color: var(--accent); }
       .dp-day.selected { background: var(--accent); color: #fff; }
 
+      .tp-picker {
+        width: min(360px, 100%);
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 14px;
+        box-shadow: 0 8px 28px rgba(77, 48, 17, 0.10);
+      }
+      .tp-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      .tp-header-copy {
+        min-width: 0;
+      }
+      .tp-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+      }
+      .tp-subtitle {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .tp-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+        gap: 8px;
+      }
+      .tp-slot {
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        padding: 10px 8px;
+        background: #fffdf9;
+        color: var(--text);
+        font: inherit;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.12s, border-color 0.12s, background 0.12s;
+      }
+      .tp-slot:hover:not(:disabled) {
+        transform: translateY(-1px);
+        border-color: var(--accent);
+      }
+      .tp-slot.selected {
+        background: rgba(162, 77, 42, 0.14);
+        border-color: var(--accent);
+        color: var(--accent-strong);
+      }
+      .tp-slot.unavailable {
+        background: rgba(106, 98, 88, 0.08);
+        color: var(--muted);
+        opacity: 0.7;
+      }
+      .tp-slot:disabled {
+        cursor: not-allowed;
+      }
+
       .composer {
         padding: 18px 24px 24px;
         border-top: 1px solid var(--border);
@@ -334,6 +396,9 @@ def _build_page() -> str:
         document.querySelectorAll(".dp-pill").forEach(function(btn) {
           btn.disabled = !enabled || state.inFlight;
         });
+        document.querySelectorAll(".tp-slot").forEach(function(btn) {
+          btn.disabled = btn.dataset.selectable !== "true" || !enabled || state.inFlight;
+        });
       }
 
       function setLoginEnabled(enabled) {
@@ -342,7 +407,8 @@ def _build_page() -> str:
         loginButton.disabled = !enabled;
       }
 
-      function createDatePicker(onSelect) {
+      function createDatePicker(onSelect, options) {
+        options = options || {};
         var today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -354,6 +420,7 @@ def _build_page() -> str:
           "January","February","March","April","May","June",
           "July","August","September","October","November","December"
         ];
+        var selectedDate = options.selectedDate || null;
 
         var cal = document.createElement("div");
         cal.className = "dp-calendar";
@@ -418,11 +485,15 @@ def _build_page() -> str:
                 if (cellDate.getTime() === today.getTime()) {
                   btn.classList.add("today");
                 }
+                var yyyy = cellDate.getFullYear();
+                var mm   = String(cellDate.getMonth() + 1).padStart(2, "0");
+                var dd   = String(cellDate.getDate()).padStart(2, "0");
+                var isoDate = yyyy + "-" + mm + "-" + dd;
+                if (selectedDate && isoDate === selectedDate) {
+                  btn.classList.add("selected");
+                }
                 btn.addEventListener("click", function() {
-                  var yyyy = cellDate.getFullYear();
-                  var mm   = String(cellDate.getMonth() + 1).padStart(2, "0");
-                  var dd   = String(cellDate.getDate()).padStart(2, "0");
-                  onSelect(yyyy + "-" + mm + "-" + dd);
+                  onSelect(isoDate);
                 });
               }
               grid.appendChild(btn);
@@ -445,47 +516,111 @@ def _build_page() -> str:
         return cal;
       }
 
+      function createTimeSlotPicker(container, hint) {
+        var picker = document.createElement("div");
+        picker.className = "tp-picker";
+
+        var header = document.createElement("div");
+        header.className = "tp-header";
+
+        var headerCopy = document.createElement("div");
+        headerCopy.className = "tp-header-copy";
+
+        var title = document.createElement("div");
+        title.className = "tp-title";
+        title.textContent = hint.current_time ? "Change time" : "Select a time";
+
+        var subtitle = document.createElement("div");
+        subtitle.className = "tp-subtitle";
+        subtitle.textContent = hint.current_date || "";
+        if (hint.open_time && hint.close_time) {
+          subtitle.textContent += " • " + hint.open_time + " - " + hint.close_time;
+        }
+
+        headerCopy.appendChild(title);
+        headerCopy.appendChild(subtitle);
+        header.appendChild(headerCopy);
+        header.appendChild(createChangeDatePill(container, hint));
+        picker.appendChild(header);
+
+        var grid = document.createElement("div");
+        grid.className = "tp-grid";
+
+        (hint.slots || []).forEach(function(slot) {
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "tp-slot " + slot.status;
+          btn.textContent = slot.time;
+          btn.dataset.selectable = String(slot.selectable);
+          btn.disabled = !slot.selectable || state.inFlight;
+          if (slot.status === "selected") {
+            btn.classList.add("selected");
+          }
+          if (slot.status === "unavailable") {
+            btn.classList.add("unavailable");
+          }
+          if (slot.selectable) {
+            btn.addEventListener("click", function() {
+              sendChatMessage((hint.submit_prefix || "Set time to ") + slot.time);
+            });
+          }
+          grid.appendChild(btn);
+        });
+
+        picker.appendChild(grid);
+        return picker;
+      }
+
+      function createChangeDatePill(container, hint) {
+        var datePill = document.createElement("button");
+        datePill.type = "button";
+        datePill.className = "dp-pill";
+        datePill.textContent = "📅 Change date";
+        datePill.addEventListener("click", function() {
+          container.querySelectorAll(".dp-calendar").forEach(function(el) { el.remove(); });
+          var picker = createDatePicker(function(isoDate) {
+            container.querySelectorAll(".dp-calendar").forEach(function(el) { el.remove(); });
+            sendChatMessage("Change date to " + isoDate);
+          }, {
+            selectedDate: hint.current_date || null
+          });
+          container.appendChild(picker);
+        });
+        return datePill;
+      }
+
       function renderUIHint(container, hint) {
         if (!hint || !hint.type) return;
 
-        if (hint.type === "date_picker") {
-          var picker = createDatePicker(function(isoDate) {
+        if (hint.type === "date_picker_inline") {
+          var inlinePicker = createDatePicker(function(isoDate) {
             container.querySelectorAll(".dp-calendar").forEach(function(el) { el.remove(); });
-            sendChatMessage(isoDate);
+            sendChatMessage((hint.submit_prefix || "Set date to ") + isoDate);
+          }, {
+            selectedDate: hint.current_date || null
           });
-          container.appendChild(picker);
+          container.appendChild(inlinePicker);
           return;
         }
 
-        if (hint.type === "date_confirm_pill") {
-          var pill = document.createElement("button");
-          pill.type = "button";
-          pill.className = "dp-pill";
-          pill.textContent = "📅 Select date";
-          pill.addEventListener("click", function() {
-            pill.remove();
-            var picker = createDatePicker(function(isoDate) {
-              container.querySelectorAll(".dp-calendar").forEach(function(el) { el.remove(); });
-              sendChatMessage(isoDate);
-            });
-            container.appendChild(picker);
-          });
-          container.appendChild(pill);
+        if (hint.type === "time_picker_inline") {
+          container.appendChild(createTimeSlotPicker(container, hint));
           return;
         }
 
-        if (hint.type === "date_change_pill") {
+        if (hint.type === "time_change_pill") {
+          var datePill = createChangeDatePill(container, hint);
+          datePill.classList.add("ui-action-pill");
+          container.appendChild(datePill);
+
           var pill = document.createElement("button");
           pill.type = "button";
           pill.className = "dp-pill";
-          pill.textContent = "✏️ Change date";
+          pill.classList.add("ui-action-pill");
+          pill.textContent = "🕒 Change time";
           pill.addEventListener("click", function() {
-            pill.remove();
-            var picker = createDatePicker(function(isoDate) {
-              container.querySelectorAll(".dp-calendar").forEach(function(el) { el.remove(); });
-              sendChatMessage("Change date to " + isoDate);
-            });
-            container.appendChild(picker);
+            container.querySelectorAll(".ui-action-pill").forEach(function(el) { el.remove(); });
+            container.appendChild(createTimeSlotPicker(container, hint));
           });
           container.appendChild(pill);
           return;
