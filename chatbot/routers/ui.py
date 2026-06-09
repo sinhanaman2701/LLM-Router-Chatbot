@@ -342,8 +342,154 @@ def _build_page() -> str:
         loginButton.disabled = !enabled;
       }
 
+      function createDatePicker(onSelect) {
+        var today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        var viewYear  = today.getFullYear();
+        var viewMonth = today.getMonth();
+
+        var DAY_LABELS   = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+        var MONTH_NAMES  = [
+          "January","February","March","April","May","June",
+          "July","August","September","October","November","December"
+        ];
+
+        var cal = document.createElement("div");
+        cal.className = "dp-calendar";
+
+        var header = document.createElement("div");
+        header.className = "dp-calendar-header";
+
+        var prevBtn = document.createElement("button");
+        prevBtn.type = "button";
+        prevBtn.className = "dp-nav-btn";
+        prevBtn.textContent = "‹";
+
+        var monthLabel = document.createElement("span");
+
+        var nextBtn = document.createElement("button");
+        nextBtn.type = "button";
+        nextBtn.className = "dp-nav-btn";
+        nextBtn.textContent = "›";
+
+        header.appendChild(prevBtn);
+        header.appendChild(monthLabel);
+        header.appendChild(nextBtn);
+        cal.appendChild(header);
+
+        var grid = document.createElement("div");
+        grid.className = "dp-grid";
+        cal.appendChild(grid);
+
+        function renderCalendar() {
+          monthLabel.textContent = MONTH_NAMES[viewMonth] + " " + viewYear;
+
+          var currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+          var viewMonthStart    = new Date(viewYear, viewMonth, 1);
+          prevBtn.disabled = viewMonthStart <= currentMonthStart;
+
+          grid.innerHTML = "";
+
+          DAY_LABELS.forEach(function(label) {
+            var cell = document.createElement("div");
+            cell.className = "dp-day-label";
+            cell.textContent = label;
+            grid.appendChild(cell);
+          });
+
+          var firstDow = new Date(viewYear, viewMonth, 1).getDay();
+          for (var i = 0; i < firstDow; i++) {
+            grid.appendChild(document.createElement("div"));
+          }
+
+          var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+          for (var day = 1; day <= daysInMonth; day++) {
+            (function(d) {
+              var cellDate = new Date(viewYear, viewMonth, d);
+              var btn = document.createElement("button");
+              btn.type = "button";
+              btn.className = "dp-day";
+              btn.textContent = String(d);
+
+              if (cellDate < today) {
+                btn.disabled = true;
+              } else {
+                if (cellDate.getTime() === today.getTime()) {
+                  btn.classList.add("today");
+                }
+                btn.addEventListener("click", function() {
+                  var yyyy = cellDate.getFullYear();
+                  var mm   = String(cellDate.getMonth() + 1).padStart(2, "0");
+                  var dd   = String(cellDate.getDate()).padStart(2, "0");
+                  onSelect(yyyy + "-" + mm + "-" + dd);
+                });
+              }
+              grid.appendChild(btn);
+            })(day);
+          }
+        }
+
+        prevBtn.addEventListener("click", function() {
+          viewMonth -= 1;
+          if (viewMonth < 0) { viewMonth = 11; viewYear -= 1; }
+          renderCalendar();
+        });
+        nextBtn.addEventListener("click", function() {
+          viewMonth += 1;
+          if (viewMonth > 11) { viewMonth = 0; viewYear += 1; }
+          renderCalendar();
+        });
+
+        renderCalendar();
+        return cal;
+      }
+
       function renderUIHint(container, hint) {
-        // Full implementation in Task 4 — stub keeps addMessage functional
+        if (!hint || !hint.type) return;
+
+        if (hint.type === "date_picker") {
+          var picker = createDatePicker(function(isoDate) {
+            container.querySelectorAll(".dp-calendar").forEach(function(el) { el.remove(); });
+            sendChatMessage(isoDate);
+          });
+          container.appendChild(picker);
+          return;
+        }
+
+        if (hint.type === "date_confirm_pill") {
+          var pill = document.createElement("button");
+          pill.type = "button";
+          pill.className = "dp-pill";
+          pill.textContent = "📅 Select date";
+          pill.addEventListener("click", function() {
+            pill.remove();
+            var picker = createDatePicker(function(isoDate) {
+              container.querySelectorAll(".dp-calendar").forEach(function(el) { el.remove(); });
+              sendChatMessage(isoDate);
+            });
+            container.appendChild(picker);
+          });
+          container.appendChild(pill);
+          return;
+        }
+
+        if (hint.type === "date_change_pill") {
+          var pill = document.createElement("button");
+          pill.type = "button";
+          pill.className = "dp-pill";
+          pill.textContent = "✏️ Change date";
+          pill.addEventListener("click", function() {
+            pill.remove();
+            var picker = createDatePicker(function(isoDate) {
+              container.querySelectorAll(".dp-calendar").forEach(function(el) { el.remove(); });
+              sendChatMessage("Change date to " + isoDate);
+            });
+            container.appendChild(picker);
+          });
+          container.appendChild(pill);
+          return;
+        }
       }
 
       function addMessage(role, content, uiHints) {
