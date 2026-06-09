@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from pathlib import Path
 
@@ -141,6 +142,37 @@ _FALLBACK = RouterDecision(
     extracted_slots={},
 )
 
+_DATE_SELECTION_PATTERNS = (
+    re.compile(r"^\s*set date to (\d{4}-\d{2}-\d{2})\s*$", re.IGNORECASE),
+    re.compile(r"^\s*change date to (\d{4}-\d{2}-\d{2})\s*$", re.IGNORECASE),
+)
+_TIME_SELECTION_PATTERNS = (
+    re.compile(r"^\s*set time to (\d{2}:\d{2})\s*$", re.IGNORECASE),
+    re.compile(r"^\s*change time to (\d{2}:\d{2})\s*$", re.IGNORECASE),
+)
+
+
+def _fast_path_decision(user_message: str) -> RouterDecision | None:
+    for pattern in _DATE_SELECTION_PATTERNS:
+        match = pattern.match(user_message)
+        if match:
+            return RouterDecision(
+                capability="facility_booking",
+                intent_class="continue_task",
+                confidence=1.0,
+                extracted_slots={"date": match.group(1)},
+            )
+    for pattern in _TIME_SELECTION_PATTERNS:
+        match = pattern.match(user_message)
+        if match:
+            return RouterDecision(
+                capability="facility_booking",
+                intent_class="continue_task",
+                confidence=1.0,
+                extracted_slots={"start_time": match.group(1)},
+            )
+    return None
+
 
 class RouterAgent:
     def __init__(self, llm_client: BaseLLMClient, metrics=None) -> None:
@@ -154,6 +186,11 @@ class RouterAgent:
         user_message: str,
         facility_catalog: list[dict[str, object]] | None = None,
     ) -> RouterDecision:
+        fast_path = _fast_path_decision(user_message)
+        if fast_path is not None:
+            self._record_metrics("success", 0.0, fast_path.intent_class, fast_path.confidence)
+            return fast_path
+
         active_capability = (
             session.active_task.capability if session.active_task else "none"
         )

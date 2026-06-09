@@ -55,6 +55,7 @@ def _make_task(*, awaiting_confirmation: bool = False) -> TaskContext:
 
 
 def _make_app_state(session: ConversationSession):
+    cleared_session = _make_session(task=None)
     redis = MagicMock()
     redis.get = AsyncMock(return_value=None)
     redis.set = AsyncMock()
@@ -69,7 +70,7 @@ def _make_app_state(session: ConversationSession):
     state_manager.restore_latest_task = AsyncMock(return_value=session)
     state_manager.restore_stashed_task = AsyncMock(return_value=session)
     state_manager.reject_confirmation = AsyncMock(return_value=session)
-    state_manager.clear_task = AsyncMock()
+    state_manager.clear_task = AsyncMock(return_value=cleared_session)
     state_manager.bump_confirmation_turns = AsyncMock(return_value=(session, False))
 
     router_agent = MagicMock()
@@ -80,6 +81,7 @@ def _make_app_state(session: ConversationSession):
 
     preferences_manager = MagicMock()
     preferences_manager.get_all = AsyncMock(return_value={})
+    preferences_manager.upsert = AsyncMock()
 
     synthesizer = MagicMock()
     synthesizer.synthesize = MagicMock(return_value="planner reply")
@@ -90,7 +92,7 @@ def _make_app_state(session: ConversationSession):
         {"name": "Swimming Pool", "category": "Recreation"},
         {"name": "Gym", "category": "Fitness", "open_time": "06:00", "close_time": "22:00", "default_duration_min": 90},
     ])
-    api_adapter.get_my_bookings = AsyncMock(return_value={"bookings": [{"id": "bk_1"}]})
+    api_adapter.get_my_bookings = AsyncMock(return_value={"bookings": [{"booking_id": "bk_1"}]})
 
     return SimpleNamespace(
         redis=redis,
@@ -201,6 +203,72 @@ async def test_side_question_uses_read_only_path_without_planner():
 
 
 @pytest.mark.asyncio
+async def test_side_question_my_bookings_reads_upcoming_and_past_shape():
+    session = _make_session(task=_make_task())
+    app_state = _make_app_state(session)
+    app_state.api_adapter.get_my_bookings = AsyncMock(
+        return_value={
+            "upcoming_bookings": [
+                {"booking_id": "bk_123", "facility_name": "Tennis Court", "date": "2026-07-10", "start_time": "10:00"}
+            ],
+            "past_bookings": [],
+        }
+    )
+    app_state.router_agent.classify.return_value = RouterDecision(
+        capability="facility_booking",
+        intent_class="side_question",
+        confidence=0.99,
+        extracted_slots={},
+    )
+
+    await _process_message(
+        request_id="req-bookings",
+        session_id=session.session_id,
+        user_message="what are my bookings?",
+        app_state=app_state,
+    )
+
+    payload = json.loads(app_state.redis.set.call_args_list[-1].args[1])
+    assert "bk_123" in payload["response"]
+
+
+@pytest.mark.asyncio
+async def test_side_question_can_lookup_specific_booking_id():
+    session = _make_session(task=_make_task())
+    app_state = _make_app_state(session)
+    app_state.api_adapter.get_my_bookings = AsyncMock(
+        return_value={
+            "upcoming_bookings": [
+                {
+                    "booking_id": "bk_1781009047020",
+                    "facility_name": "Tennis Court",
+                    "date": "2026-07-10",
+                    "start_time": "10:00",
+                    "status": "Confirmed",
+                }
+            ],
+            "past_bookings": [],
+        }
+    )
+    app_state.router_agent.classify.return_value = RouterDecision(
+        capability="facility_booking",
+        intent_class="side_question",
+        confidence=0.99,
+        extracted_slots={},
+    )
+
+    await _process_message(
+        request_id="req-booking-id",
+        session_id=session.session_id,
+        user_message="this is my booking bk_1781009047020",
+        app_state=app_state,
+    )
+
+    payload = json.loads(app_state.redis.set.call_args_list[-1].args[1])
+    assert "Booking bk_1781009047020 is for Tennis Court" in payload["response"]
+
+
+@pytest.mark.asyncio
 async def test_side_question_can_answer_facility_hours_from_cached_context():
     session = _make_session(task=_make_task())
     app_state = _make_app_state(session)
@@ -266,6 +334,39 @@ async def test_pending_confirmation_times_out_after_unrelated_turns():
     app_state.facility_planner.run.assert_not_called()
     payload = json.loads(app_state.redis.set.call_args_list[-1].args[1])
     assert "cancelled the pending confirmation" in payload["response"]
+
+
+@pytest.mark.asyncio
+async def test_confirmation_success_clears_active_task():
+    session = _make_session(task=_make_task(awaiting_confirmation=True))
+    app_state = _make_app_state(session)
+    app_state.router_agent.classify.return_value = RouterDecision(
+        capability="facility_booking",
+        intent_class="confirmation",
+        confidence=0.99,
+        extracted_slots={},
+    )
+    app_state.state_manager.release_confirmation = AsyncMock(
+        return_value=session.active_task.pending_tool_call
+    )
+    app_state.state_manager.get_session = AsyncMock(side_effect=[session, session, _make_session(task=None)])
+    app_state.harness.execute = AsyncMock(
+        return_value=SimpleNamespace(
+            status="SUCCESS",
+            data={"booking_id": "bk_123"},
+            reason=None,
+            error=None,
+        )
+    )
+
+    await _process_message(
+        request_id="req-2",
+        session_id=session.session_id,
+        user_message="yes",
+        app_state=app_state,
+    )
+
+    app_state.state_manager.clear_task.assert_called_once_with(session.session_id)
 
 
 @pytest.mark.asyncio

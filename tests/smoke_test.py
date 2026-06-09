@@ -31,6 +31,31 @@ async def run_async_checks() -> None:
         assert len(facilities) == 4, f"expected 4 facilities, got {len(facilities)}"
         print("2. ApiAdapter.get_facility_list() returned 4 facilities")
 
+        booking_date = (datetime.now(UTC) + timedelta(days=3)).date().isoformat()
+        created = await adapter.make_booking(
+            "fac_1",
+            booking_date,
+            "11:00",
+            "12:00",
+            settings.MOCK_SERVER_EMAIL,
+        )
+        assert created["booking_id"].startswith("bk_"), f"unexpected booking id: {created}"
+
+        availability = await adapter.get_facility_booking_data("fac_1")
+        availability_bookings = availability.get("bookings", [])
+        assert any(
+            booking.get("booking_id") == created["booking_id"]
+            for booking in availability_bookings
+        ), "created booking missing from facility booking data"
+
+        my_bookings = await adapter.get_my_bookings()
+        upcoming = my_bookings.get("upcoming_bookings", [])
+        assert any(
+            booking.get("booking_id") == created["booking_id"]
+            for booking in upcoming
+        ), "created booking missing from my bookings"
+        print("3. Booking state is visible in availability and my bookings")
+
         user = UserInfo(
             user_id="00000000-0000-0000-0000-000000000001",
             community_id="00000000-0000-0000-0000-000000000002",
@@ -64,7 +89,7 @@ async def run_async_checks() -> None:
         assert task.slot_validation.date_valid is False
         assert task.slot_validation.time_valid is False
         assert task.slot_validation.slot_available is False
-        print("3. StateManager cascade reset verified")
+        print("4. StateManager cascade reset verified")
     finally:
         await http_client.aclose()
         await redis.aclose()
@@ -78,7 +103,7 @@ def run_http_checks() -> None:
         )
         assert login_response.status_code == 200, login_response.text
         token = login_response.json()["token"]
-        print("4. /auth/login returned an HMAC token")
+        print("5. /auth/login returned an HMAC token")
 
         chat_response = client.post(
             "/chat/message",
@@ -87,12 +112,12 @@ def run_http_checks() -> None:
         )
         assert chat_response.status_code == 202, chat_response.text
         request_id = chat_response.json()["request_id"]
-        print("5. /chat/message returned 202 with request_id")
+        print("6. /chat/message returned 202 with request_id")
 
         status_response = client.get(f"/chat/status/{request_id}")
         assert status_response.status_code == 200, status_response.text
         assert status_response.json() == {"status": "processing"}
-        print("6. /chat/status/{request_id} returned processing")
+        print("7. /chat/status/{request_id} returned processing")
 
 
 def main() -> None:

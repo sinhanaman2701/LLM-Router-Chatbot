@@ -12,3 +12,5 @@ build/
 *.egg-info/
 .DS_Store
 alembic.log
+mock-server/node_modules/
+mock-server/cookie.txt

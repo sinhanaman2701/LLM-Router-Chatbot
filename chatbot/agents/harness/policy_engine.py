@@ -7,6 +7,7 @@ from typing import Literal
 import structlog
 
 from chatbot.agents.harness.policy_store import PolicyStore
+from chatbot.config import settings
 from chatbot.state.schemas import HarnessContext
 
 logger = structlog.get_logger(__name__)
@@ -87,14 +88,20 @@ class PolicyEngine:
     def _default_rules(capability: str, tool_name: str):
         if capability != "facility_booking":
             return []
+        is_production = settings.APP_ENV.lower() == "production"
         defaults = {
             "create_booking": [
-                type("Rule", (), {
-                    "id": "rate_limit_booking",
-                    "conditions_json": [{"type": "hourly_limit", "operator": ">", "value": 5}],
-                    "action": "DENY",
-                    "reason": "You have exceeded 5 bookings in the last hour.",
-                })(),
+                *(
+                    [
+                        type("Rule", (), {
+                            "id": "rate_limit_booking",
+                            "conditions_json": [{"type": "hourly_limit", "operator": ">", "value": 5}],
+                            "action": "DENY",
+                            "reason": "You have exceeded 5 bookings in the last hour.",
+                        })(),
+                    ]
+                    if is_production else []
+                ),
                 type("Rule", (), {
                     "id": "always_confirm_booking",
                     "conditions_json": [],

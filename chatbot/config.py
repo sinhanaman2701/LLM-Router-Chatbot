@@ -10,6 +10,7 @@ class ChatbotConfig(BaseSettings):
         extra="forbid",
     )
 
+    APP_ENV: str = Field(default="development")
     MOCK_SERVER_URL: str = Field(default="http://localhost:3000")
     MOCK_SERVER_EMAIL: str = Field(default="dn.user.a@gmail.com")
     MOCK_SERVER_PASSWORD: str = Field(default="password")

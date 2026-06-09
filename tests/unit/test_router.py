@@ -101,3 +101,47 @@ async def test_llm_error_returns_unclear():
     router = RouterAgent(llm_client=llm)
     decision = await router.classify(_make_session(), "book something", facility_catalog=FACILITY_CATALOG)
     assert decision.intent_class == "unclear"
+
+
+@pytest.mark.asyncio
+async def test_set_date_uses_fast_path_without_llm():
+    llm = MagicMock()
+    llm.chat = AsyncMock()
+    router = RouterAgent(llm_client=llm)
+    decision = await router.classify(_make_session(), "Set date to 2026-06-13", facility_catalog=FACILITY_CATALOG)
+    assert decision.intent_class == "continue_task"
+    assert decision.extracted_slots == {"date": "2026-06-13"}
+    llm.chat.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_change_date_uses_fast_path_without_llm():
+    llm = MagicMock()
+    llm.chat = AsyncMock()
+    router = RouterAgent(llm_client=llm)
+    decision = await router.classify(_make_session(), "Change date to 2026-06-14", facility_catalog=FACILITY_CATALOG)
+    assert decision.intent_class == "continue_task"
+    assert decision.extracted_slots == {"date": "2026-06-14"}
+    llm.chat.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_set_time_uses_fast_path_without_llm():
+    llm = MagicMock()
+    llm.chat = AsyncMock()
+    router = RouterAgent(llm_client=llm)
+    decision = await router.classify(_make_session(), "Set time to 10:00", facility_catalog=FACILITY_CATALOG)
+    assert decision.intent_class == "continue_task"
+    assert decision.extracted_slots == {"start_time": "10:00"}
+    llm.chat.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_change_time_uses_fast_path_without_llm():
+    llm = MagicMock()
+    llm.chat = AsyncMock()
+    router = RouterAgent(llm_client=llm)
+    decision = await router.classify(_make_session(), "Change time to 11:00", facility_catalog=FACILITY_CATALOG)
+    assert decision.intent_class == "continue_task"
+    assert decision.extracted_slots == {"start_time": "11:00"}
+    llm.chat.assert_not_called()
