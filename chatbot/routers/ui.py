@@ -331,6 +331,9 @@ def _build_page() -> str:
       function setChatEnabled(enabled) {
         messageInput.disabled = !enabled;
         sendButton.disabled = !enabled || state.inFlight;
+        document.querySelectorAll(".dp-pill").forEach(function(btn) {
+          btn.disabled = !enabled || state.inFlight;
+        });
       }
 
       function setLoginEnabled(enabled) {
@@ -339,15 +342,29 @@ def _build_page() -> str:
         loginButton.disabled = !enabled;
       }
 
-      function addMessage(role, content) {
+      function renderUIHint(container, hint) {
+        // Full implementation in Task 4 — stub keeps addMessage functional
+      }
+
+      function addMessage(role, content, uiHints) {
         if (emptyState) {
           emptyState.remove();
         }
-        const node = document.createElement("article");
-        node.className = "message " + role;
-        node.textContent = content;
-        messages.appendChild(node);
+        const group = document.createElement("div");
+        group.className = "message-group " + role;
+
+        const bubble = document.createElement("article");
+        bubble.className = "message " + role;
+        bubble.textContent = content;
+        group.appendChild(bubble);
+
+        if (role === "assistant" && uiHints && uiHints.type) {
+          renderUIHint(group, uiHints);
+        }
+
+        messages.appendChild(group);
         messages.scrollTop = messages.scrollHeight;
+        return group;
       }
 
       async function pollStatus(requestId) {
@@ -412,21 +429,13 @@ def _build_page() -> str:
         setLoginEnabled(true);
       });
 
-      chatForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        if (!state.token || state.inFlight) {
-          return;
-        }
-
-        const userMessage = messageInput.value.trim();
-        if (!userMessage) {
-          return;
-        }
+      async function sendChatMessage(userMessage) {
+        if (!state.token || state.inFlight) return;
+        if (!userMessage) return;
 
         state.inFlight = true;
-        setChatEnabled(true);
+        setChatEnabled(false);
         addMessage("user", userMessage);
-        messageInput.value = "";
         setStatus("Waiting for assistant response...");
 
         try {
@@ -439,15 +448,13 @@ def _build_page() -> str:
             body: JSON.stringify({ user_message: userMessage }),
           });
 
-          if (!response.ok) {
-            throw new Error("Message request failed");
-          }
+          if (!response.ok) throw new Error("Message request failed");
 
           const accepted = await response.json();
           const result = await pollStatus(accepted.request_id);
 
           if (result.status === "done") {
-            addMessage("assistant", result.response || "");
+            addMessage("assistant", result.response || "", result.ui_hints || {});
             setStatus("Response received.");
           } else if (result.status === "error") {
             setStatus(result.error || "The server returned an error.", true);
@@ -461,6 +468,17 @@ def _build_page() -> str:
           setChatEnabled(true);
           messageInput.focus();
         }
+      }
+
+      chatForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!state.token || state.inFlight) return;
+
+        const userMessage = messageInput.value.trim();
+        if (!userMessage) return;
+
+        messageInput.value = "";
+        await sendChatMessage(userMessage);
       });
     </script>
   </body>
