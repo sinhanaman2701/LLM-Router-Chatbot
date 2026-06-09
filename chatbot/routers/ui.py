@@ -137,8 +137,18 @@ def _build_page() -> str:
         background: rgba(255, 255, 255, 0.55);
       }
 
-      .message {
+      /* Group wrapper — carries flex alignment and max-width constraint */
+      .message-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
         max-width: min(78%, 680px);
+      }
+      .message-group.user      { align-self: flex-end;   align-items: flex-end; }
+      .message-group.assistant { align-self: flex-start; align-items: flex-start; }
+
+      /* Bubble */
+      .message {
         padding: 14px 16px;
         border-radius: 18px;
         line-height: 1.45;
@@ -146,16 +156,82 @@ def _build_page() -> str:
         word-break: break-word;
         border: 1px solid rgba(0, 0, 0, 0.04);
       }
+      .message.user      { background: var(--user); }
+      .message.assistant { background: var(--assistant); }
 
-      .message.user {
-        align-self: flex-end;
-        background: var(--user);
+      /* ── Date picker pill buttons ── */
+      .dp-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border: 1.5px solid var(--accent);
+        border-radius: 20px;
+        background: transparent;
+        color: var(--accent);
+        font: inherit;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
       }
+      .dp-pill:hover    { background: var(--accent); color: #fff; }
+      .dp-pill:disabled { opacity: 0.5; cursor: not-allowed; }
 
-      .message.assistant {
-        align-self: flex-start;
-        background: var(--assistant);
+      /* ── Inline date picker calendar ── */
+      .dp-calendar {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 14px;
+        box-shadow: 0 8px 28px rgba(77, 48, 17, 0.10);
+        width: 280px;
+        user-select: none;
       }
+      .dp-calendar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .dp-calendar-header span { font-weight: 700; font-size: 0.95rem; }
+      .dp-nav-btn {
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-size: 1.1rem;
+        color: var(--accent);
+        padding: 2px 8px;
+        border-radius: 8px;
+      }
+      .dp-nav-btn:hover    { background: rgba(162, 77, 42, 0.10); }
+      .dp-nav-btn:disabled { opacity: 0.4; cursor: default; }
+      .dp-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+      }
+      .dp-day-label {
+        text-align: center;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--muted);
+        padding-bottom: 4px;
+      }
+      .dp-day {
+        text-align: center;
+        padding: 6px 2px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        border: none;
+        background: none;
+        color: var(--text);
+      }
+      .dp-day:hover:not(:disabled) { background: rgba(162, 77, 42, 0.12); }
+      .dp-day:disabled { color: var(--muted); cursor: default; opacity: 0.45; }
+      .dp-day.today    { font-weight: 700; color: var(--accent); }
+      .dp-day.selected { background: var(--accent); color: #fff; }
 
       .composer {
         padding: 18px 24px 24px;
@@ -188,7 +264,7 @@ def _build_page() -> str:
           grid-template-columns: 1fr;
         }
 
-        .message { max-width: 92%; }
+        .message-group { max-width: 92%; }
       }
     </style>
   </head>
