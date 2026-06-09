@@ -1,0 +1,46 @@
+{
+  "title": "Anacity Chatbot Phase 3",
+  "description": "Dashboard specification for Phase 3 observability.",
+  "panels": [
+    {
+      "title": "Request Latency",
+      "metric": "chatbot_request_duration_ms",
+      "view": "histogram_quantile(0.95)"
+    },
+    {
+      "title": "Router Confidence",
+      "metric": "chatbot_router_confidence_total",
+      "view": "stacked_counter_by_band"
+    },
+    {
+      "title": "LLM Latency",
+      "metric": "chatbot_llm_duration_ms",
+      "view": "histogram_quantile(0.95)"
+    },
+    {
+      "title": "Harness Tool Outcomes",
+      "metric": "chatbot_tool_calls_total",
+      "view": "stacked_counter_by_outcome"
+    },
+    {
+      "title": "Policy Decisions",
+      "metric": "chatbot_harness_policy_outcomes_total",
+      "view": "counter_by_action"
+    },
+    {
+      "title": "Circuit Breaker State",
+      "metric": "chatbot_circuit_breaker_state",
+      "view": "gauge_by_tool"
+    },
+    {
+      "title": "State Manager Retries",
+      "metric": "chatbot_session_writes_retried_total",
+      "view": "counter"
+    },
+    {
+      "title": "Dependency Latency",
+      "metric": "chatbot_dependency_duration_ms",
+      "view": "histogram_quantile(0.95)"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "anacity-agentrouter-chatbot"
+version = "0.1.0"
+description = "Phase 0 foundation for Anacity Chatbot v2"
+authors = ["Naman Sinha"]
+readme = "README.md"
+packages = [{ include = "chatbot" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.116.0"
+uvicorn = { version = "^0.35.0", extras = ["standard"] }
+pydantic = { version = "^2.11.0", extras = ["email"] }
+pydantic-settings = "^2.10.0"
+redis = { version = "^6.2.0", extras = ["hiredis"] }
+asyncpg = "^0.30.0"
+sqlalchemy = { version = "^2.0.41", extras = ["asyncio"] }
+alembic = "^1.16.0"
+httpx = "^0.28.1"
+structlog = "^25.4.0"
+python-multipart = "^0.0.20"
+ollama = ">=0.4.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.0"
+pytest-asyncio = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.9.0"]
+build-backend = "poetry.core.masonry.api"

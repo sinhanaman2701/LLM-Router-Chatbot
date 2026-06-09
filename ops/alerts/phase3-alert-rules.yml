@@ -1,0 +1,58 @@
+groups:
+  - name: anacity-chatbot-phase3
+    rules:
+      - alert: ChatbotCircuitBreakerOpen
+        expr: chatbot_circuit_breaker_state == 2
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker is open for a chatbot tool."
+
+      - alert: ChatbotToolErrorRateHigh
+        expr: |
+          sum(rate(chatbot_tool_calls_total{outcome=~"error|uncertain"}[5m]))
+          /
+          clamp_min(sum(rate(chatbot_tool_calls_total[5m])), 1)
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Chatbot tool error rate is above 5%."
+
+      - alert: ChatbotRouterLowConfidenceSpike
+        expr: |
+          sum(rate(chatbot_router_confidence_total{band="low"}[5m]))
+          /
+          clamp_min(sum(rate(chatbot_router_confidence_total[5m])), 1)
+          > 0.20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Router low-confidence rate is above 20%."
+
+      - alert: ChatbotRequestP95High
+        expr: histogram_quantile(0.95, sum by (le, component) (rate(chatbot_request_duration_ms_bucket[5m]))) > 5000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Chatbot p95 request latency is above 5s."
+
+      - alert: ChatbotAuditLogInsertFailure
+        expr: increase(chatbot_audit_log_failures_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Audit log inserts are failing."
+
+      - alert: ChatbotMockServerAuthChurn
+        expr: increase(chatbot_mock_server_auth_refresh_total{outcome=~"refresh|cache_miss"}[15m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Mock server auth cache misses or refreshes are elevated."
