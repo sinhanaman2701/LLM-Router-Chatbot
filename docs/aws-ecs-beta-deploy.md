@@ -74,6 +74,12 @@ Container `mock-server`:
 CMD-SHELL,curl -f http://127.0.0.1:3000/health || exit 1
 ```
 
+Concrete templates live in:
+
+- `ops/aws/ecs-task-definition.template.json`
+- `ops/aws/ecs-service.template.json`
+- `ops/aws/README.md`
+
 ## Environment Variables For `web`
 
 Set these on the `web` container:
@@ -110,6 +116,17 @@ docker run --rm \
 ```
 
 For repeatable operations, this should become an ECS one-off task using the same image and env vars.
+
+AWS CLI example:
+
+```bash
+aws ecs run-task \
+  --cluster <cluster-name> \
+  --launch-type FARGATE \
+  --task-definition llm-router-chatbot:<revision> \
+  --network-configuration "awsvpcConfiguration={subnets=[subnet-1,subnet-2],securityGroups=[sg-ecs-task],assignPublicIp=DISABLED}" \
+  --overrides '{"containerOverrides":[{"name":"web","command":["bash","scripts/release_web.sh"]}]}'
+```
 
 ## Networking
 
