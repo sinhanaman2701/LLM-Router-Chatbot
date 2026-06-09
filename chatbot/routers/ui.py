@@ -700,7 +700,7 @@ def _build_page() -> str:
 
           addMessage(
             "assistant",
-            "Hi! I'm Anacity AI 👋\n\nHere's what I can help you with:\n\n📅 Book a facility\n❌ Cancel a booking\n📋 View your bookings\n\nAvailable facilities: Tennis Court, Swimming Pool, Badminton Court, Gym.\n\nWe can also continue your earlier task whenever you're ready. Just let me know!",
+            "Hi! I'm Anacity AI 👋\n\nHere's what I can help you with:\n\n📅 Book a facility\n❌ Cancel a booking\n📋 View your bookings\n\nAvailable facilities: Tennis Court, Swimming Pool, Badminton Court, Gym.",
             {}
           );
 
