@@ -116,7 +116,9 @@ async def _process_message(
                     session_id,
                     lambda s: _append_messages(s, user_message, response_text),
                 )
-                result_payload = json.dumps({"status": "done", "response": response_text})
+                _fresh = await state_manager.get_session(session_id)
+                _hints = _compute_ui_hints(_fresh)
+                result_payload = json.dumps({"status": "done", "response": response_text, "ui_hints": _hints})
                 await redis.set(f"request:{request_id}", result_payload, ex=settings.REQUEST_RESULT_TTL)
                 return
             task = session.active_task
@@ -277,7 +279,9 @@ async def _process_message(
             lambda s: _append_messages(s, user_message, response_text),
         )
 
-        result_payload = json.dumps({"status": "done", "response": response_text})
+        _fresh = await state_manager.get_session(session_id)
+        _hints = _compute_ui_hints(_fresh)
+        result_payload = json.dumps({"status": "done", "response": response_text, "ui_hints": _hints})
         await redis.set(f"request:{request_id}", result_payload, ex=settings.REQUEST_RESULT_TTL)
 
     except Exception as exc:
@@ -291,6 +295,24 @@ async def _process_message(
 def _bump_unclear(session):
     session.consecutive_unclear_count += 1
     return session
+
+
+def _compute_ui_hints(session) -> dict:
+    """Return UI hint dict telling the frontend which date picker UI to render."""
+    task = session.active_task
+    if task is None:
+        return {}
+    slots = task.slots
+    # Priority 1: awaiting harness confirmation → confirm pill
+    if task.awaiting_confirmation:
+        return {"type": "date_confirm_pill", "current_date": slots.date}
+    # Priority 2: date not yet collected → full inline calendar
+    if slots.date is None:
+        return {"type": "date_picker"}
+    # Priority 3: date known but time not yet collected → change pill
+    if slots.start_time is None:
+        return {"type": "date_change_pill", "current_date": slots.date}
+    return {}
 
 
 def _append_messages(session, user_msg: str, bot_msg: str):
