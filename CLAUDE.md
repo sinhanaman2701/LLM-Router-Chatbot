@@ -79,8 +79,13 @@ Do not commit `.env.ec2` to the repo. Use `.env.ec2.example` as the template.
 ## GitHub Repo
 
 - **URL:** https://github.com/sinhanaman2701/LLM-Router-Chatbot
-- **Active branch:** `feat/date-picker-ui` (all recent work is here, merged to main via PRs)
-- **Default branch:** `main`
+- **Default branch:** `main` (only branch — all work goes here via PRs)
+
+## Contribution Rules
+
+- **Never push directly to `main`.** All changes must go through a feature branch and a pull request.
+- **Every PR must be reviewed and merged by someone other than the author.** Do not self-merge.
+- Branch naming: `feat/<description>`, `fix/<description>`, `chore/<description>`.
 
 ## LLM Setup
 
