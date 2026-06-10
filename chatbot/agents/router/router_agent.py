@@ -19,9 +19,9 @@ PROMPT_PATH = Path(__file__).parent / "prompts" / "router_v1.0.txt"
 INTENT_CLASS_DEFINITIONS: tuple[dict[str, object], ...] = (
     {
         "name": "new_task",
-        "description": "Start a fresh booking-related task when there is no active task or the user clearly begins a new request.",
+        "description": "Start a fresh user goal when there is no meaningful active task or the user clearly begins a new request.",
         "rules": (
-            "Use for new booking, cancellation, or bookings lookup requests.",
+            "Use when the user is initiating a new request, lookup, or action.",
             "Prefer switch_task instead if the user explicitly changes direction mid-task.",
         ),
     },
@@ -35,7 +35,7 @@ INTENT_CLASS_DEFINITIONS: tuple[dict[str, object], ...] = (
     },
     {
         "name": "switch_task",
-        "description": "Pause the current task and start a different booking-related task.",
+        "description": "Pause the current task and start a different user goal.",
         "rules": (
             "Use when the user explicitly pivots to a different goal mid-conversation.",
             "Prefer new_task only when there is no meaningful active task to suspend.",
@@ -45,7 +45,7 @@ INTENT_CLASS_DEFINITIONS: tuple[dict[str, object], ...] = (
         "name": "cancel_task",
         "description": "Abandon the current active task entirely.",
         "rules": (
-            "Use for messages like cancel this, never mind, or stop this booking.",
+            "Use for messages like cancel this, never mind, or stop this request.",
             "Do not use for rejecting only one pending confirmation step.",
         ),
     },
@@ -53,7 +53,7 @@ INTENT_CLASS_DEFINITIONS: tuple[dict[str, object], ...] = (
         "name": "resume_task",
         "description": "Return to a previously paused task after a switch or side question.",
         "rules": (
-            "Use when the user says go back, continue the earlier booking, or resume the previous task.",
+            "Use when the user says go back, continue the earlier request, or resume the previous task.",
             "Prefer continue_task when they are still working on the current active task.",
         ),
     },
@@ -61,7 +61,7 @@ INTENT_CLASS_DEFINITIONS: tuple[dict[str, object], ...] = (
         "name": "side_question",
         "description": "Ask a quick read-only question without changing the active task.",
         "rules": (
-            "Use for short informational questions like what facilities are available.",
+            "Use for short informational questions that should not replace the main goal.",
             "Do not use if the user is changing the core goal of the conversation.",
         ),
     },
@@ -83,10 +83,10 @@ INTENT_CLASS_DEFINITIONS: tuple[dict[str, object], ...] = (
     },
     {
         "name": "small_talk",
-        "description": "Handle casual conversation unrelated to facility booking.",
+        "description": "Handle casual conversation unrelated to supported task capabilities.",
         "rules": (
-            "Use for greetings, thanks, or chit-chat with no booking intent.",
-            "Do not use if the message still contains a booking-related request.",
+            "Use for greetings, thanks, or chit-chat with no task intent.",
+            "Do not use if the message still contains a supported task request.",
         ),
     },
     {
@@ -96,6 +96,19 @@ INTENT_CLASS_DEFINITIONS: tuple[dict[str, object], ...] = (
             "Use when the message is too vague or ambiguous to route safely.",
             "Keep extracted_slots empty unless a slot value is explicit and reliable.",
         ),
+    },
+)
+
+CAPABILITY_DEFINITIONS: tuple[dict[str, str], ...] = (
+    {
+        "name": "facility_booking",
+        "description": "Facility reservations, cancellations, availability checks, and booking lookups for community amenities.",
+        "slot_hint": "Facility slot keys are facility_name, date (YYYY-MM-DD), start_time (HH:MM), and duration_minutes (integer).",
+    },
+    {
+        "name": "none",
+        "description": "Messages that do not belong to any currently supported task capability.",
+        "slot_hint": "Do not extract domain slots for this capability.",
     },
 )
 
@@ -118,6 +131,14 @@ def _format_intent_definitions() -> str:
         lines.append(f"- {item['name']}: {item['description']}")
         for rule in item["rules"]:
             lines.append(f"  - {rule}")
+    return "\n".join(lines)
+
+
+def _format_capability_definitions() -> str:
+    lines: list[str] = []
+    for item in CAPABILITY_DEFINITIONS:
+        lines.append(f"- {item['name']}: {item['description']}")
+        lines.append(f"  - Slot guidance: {item['slot_hint']}")
     return "\n".join(lines)
 
 
@@ -201,6 +222,7 @@ class RouterAgent:
             .replace("{slots_text}", slots_text)
             .replace("{facility_catalog}", _format_facility_catalog(facility_catalog))
             .replace("{intent_class_definitions}", _format_intent_definitions())
+            .replace("{capability_definitions}", _format_capability_definitions())
         )
         bind_log_context(component="router", session_id=session.session_id, user_id=session.user.user_id)
         start_time = time.monotonic()

@@ -73,8 +73,10 @@ async def test_router_prompt_includes_intent_descriptions():
     await router.classify(_make_session(), "switch my task", facility_catalog=FACILITY_CATALOG)
 
     system_prompt = llm.chat.call_args.kwargs["system_prompt"]
-    assert "Pause the current task and start a different booking-related task." in system_prompt
+    assert "Pause the current task and start a different user goal." in system_prompt
     assert "Reject or correct a pending action without abandoning the broader task." in system_prompt
+    assert "Facility reservations, cancellations, availability checks, and booking lookups for community amenities." in system_prompt
+    assert "Intent classes must remain domain-agnostic." in system_prompt
     assert "Tennis Court (Sports)" in system_prompt
     assert "Gym (Fitness)" in system_prompt
 
